@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G-Code Visual Splitter v0.1.0</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00d4ff;
+        }
+
+        .version {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .controls {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .file-input-wrapper {
+            margin-bottom: 15px;
+        }
+
+        input[type="file"] {
+            padding: 10px;
+            background: #0f3460;
+            border: 2px solid #00d4ff;
+            border-radius: 4px;
+            color: #eee;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .canvas-container {
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        canvas {
+            border: 2px solid #00d4ff;
+            background: #000;
+            cursor: default;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .info-panel {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            background: #0f3460;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #00d4ff;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #00b8d4;
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .clear-btn {
+            background: #ff6b6b;
+        }
+
+        .clear-btn:hover {
+            background: #ee5a52;
+        }
+
+        .selection-info {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+        }
+
+        .selection-marker {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            margin: 0 5px;
+        }
+
+        .start-marker {
+            background: #4ade80;
+            color: #000;
+        }
+
+        .end-marker {
+            background: #f87171;
+            color: #000;
+        }
+
+        .instructions {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #00d4ff;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #00d4ff;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin: 5px 0;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            display: flex;
+            gap: 5px;
+            flex-direction: column;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            font-size: 20px;
+            background: rgba(0, 212, 255, 0.8);
+        }
+
+        .zoom-btn:hover {
+            background: rgba(0, 212, 255, 1);
+        }
+
+        .timeline-container {
+            background: #16213e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .timeline-label {
+            font-size: 14px;
+            color: #00d4ff;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .timeline-wrapper {
+            position: relative;
+            height: 60px;
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .timeline-track {
+            position: relative;
+            height: 8px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            margin-top: 16px;
+        }
+
+        .timeline-range {
+            position: absolute;
+            height: 8px;
+            background: #00d4ff;
+            border-radius: 4px;
+            top: 0;
+            pointer-events: none;
+        }
+
+        .timeline-cursor {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            border: 3px solid #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            transition: transform 0.1s;
+        }
+
+        .timeline-cursor:active {
+            cursor: grabbing;
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+
+        .timeline-cursor.start {
+            background: #4ade80;
+        }
+
+        .timeline-cursor.end {
+            background: #f87171;
+        }
+
+        .timeline-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>G-Code Visual Splitter</h1>
+        <div class="version">v0.1.0</div>
+
+        <div class="instructions">
+            <h3>How to use:</h3>
+            <ol>
+                <li>Load your G-code file using the file selector below</li>
+                <li>Use the timeline sliders to select START (green) and END (red) points</li>
+                <li>The selected portion will be highlighted in the visualization</li>
+                <li>Click "Export Selected G-Code" to download the extracted portion</li>
+            </ol>
+        </div>
+
+        <div class="controls">
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".gcode,.nc,.txt" />
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Total Lines</div>
+                    <div class="info-value" id="totalLines">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Total Points</div>
+                    <div class="info-value" id="totalPoints">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Selected Lines</div>
+                    <div class="info-value" id="selectedLines">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Work Area (mm)</div>
+                    <div class="info-value" id="workArea">-</div>
+                </div>
+            </div>
+            <div class="selection-info" id="selectionInfo" style="display: none;">
+                <strong>Selection:</strong>
+                <span class="selection-marker start-marker">START: Line <span id="startLine">-</span></span>
+                <span class="selection-marker end-marker">END: Line <span id="endLine">-</span></span>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="gcodeCanvas" width="1200" height="800"></canvas>
+            <div class="zoom-controls">
+                <button class="zoom-btn" id="zoomIn">+</button>
+                <button class="zoom-btn" id="zoomOut">−</button>
+                <button class="zoom-btn" id="resetView" title="Reset View">⟲</button>
+            </div>
+        </div>
+
+        <div class="timeline-container">
+            <div class="timeline-label">Timeline Selection</div>
+            <div class="timeline-wrapper">
+                <div class="timeline-track">
+                    <div class="timeline-range" id="timelineRange"></div>
+                    <div class="timeline-cursor start" id="startCursor"></div>
+                    <div class="timeline-cursor end" id="endCursor"></div>
+                </div>
+            </div>
+            <div class="timeline-labels">
+                <span>Start: 0%</span>
+                <span>End: 100%</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="button-group">
+                <button id="exportBtn" disabled>Export Selected G-Code</button>
+                <button id="clearBtn" class="clear-btn" disabled>Clear Selection</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class GCodeVisualizer {
+            constructor() {
+                this.canvas = document.getElementById('gcodeCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.gcodeLines = [];
+                this.points = [];
+                this.startPoint = null;
+                this.endPoint = null;
+                this.startLineIndex = 0;
+                this.endLineIndex = 0;
+                this.offsetX = 0;
+                this.offsetY = 0;
+                this.scale = 1;
+                this.isDragging = false;
+                this.lastMouseX = 0;
+                this.lastMouseY = 0;
+                this.bounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+
+                // Timeline cursors
+                this.startCursor = document.getElementById('startCursor');
+                this.endCursor = document.getElementById('endCursor');
+                this.timelineTrack = document.querySelector('.timeline-track');
+                this.timelineRange = document.getElementById('timelineRange');
+                this.activeCursor = null;
+                this.startPercent = 0;
+                this.endPercent = 1;
+
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                document.getElementById('fileInput').addEventListener('change', (e) => this.loadFile(e));
+
+                // Canvas pan and zoom
+                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.canvas.addEventListener('mouseup', () => this.handleMouseUp());
+                this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+
+                // Timeline cursor dragging
+                this.startCursor.addEventListener('mousedown', (e) => this.startCursorDrag(e, 'start'));
+                this.endCursor.addEventListener('mousedown', (e) => this.startCursorDrag(e, 'end'));
+                document.addEventListener('mousemove', (e) => this.dragCursor(e));
+                document.addEventListener('mouseup', () => this.stopCursorDrag());
+
+                document.getElementById('exportBtn').addEventListener('click', () => this.exportGCode());
+                document.getElementById('clearBtn').addEventListener('click', () => this.clearSelection());
+                document.getElementById('zoomIn').addEventListener('click', () => this.zoom(1.2));
+                document.getElementById('zoomOut').addEventListener('click', () => this.zoom(0.8));
+                document.getElementById('resetView').addEventListener('click', () => this.resetView());
+            }
+
+            startCursorDrag(e, cursorType) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.activeCursor = cursorType;
+            }
+
+            dragCursor(e) {
+                if (!this.activeCursor || this.points.length === 0) return;
+
+                const rect = this.timelineTrack.getBoundingClientRect();
+                const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                const percent = x / rect.width;
+
+                if (this.activeCursor === 'start') {
+                    this.startPercent = Math.min(percent, this.endPercent);
+                } else {
+                    this.endPercent = Math.max(percent, this.startPercent);
+                }
+
+                this.updateTimelineFromPercent();
+            }
+
+            stopCursorDrag() {
+                this.activeCursor = null;
+            }
+
+            updateTimelineFromPercent() {
+                const trackWidth = this.timelineTrack.offsetWidth;
+
+                // Update cursor positions
+                this.startCursor.style.left = `${this.startPercent * trackWidth}px`;
+                this.endCursor.style.left = `${this.endPercent * trackWidth}px`;
+
+                // Update range highlight
+                this.timelineRange.style.left = `${this.startPercent * trackWidth}px`;
+                this.timelineRange.style.width = `${(this.endPercent - this.startPercent) * trackWidth}px`;
+
+                // Update line indices
+                const totalPoints = this.points.length - 1;
+                const startIdx = Math.floor(this.startPercent * totalPoints);
+                const endIdx = Math.floor(this.endPercent * totalPoints);
+
+                if (this.points[startIdx] && this.points[endIdx]) {
+                    this.startLineIndex = this.points[startIdx].lineIndex;
+                    this.endLineIndex = this.points[endIdx].lineIndex;
+                    this.startPoint = this.points[startIdx];
+                    this.endPoint = this.points[endIdx];
+
+                    document.getElementById('exportBtn').disabled = false;
+                    document.getElementById('clearBtn').disabled = false;
+                }
+
+                this.updateInfo();
+                this.draw();
+            }
+
+            async loadFile(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const text = await file.text();
+                this.gcodeLines = text.split('\n');
+                this.parseGCode();
+                this.resetView();
+                this.initializeTimeline();
+                this.updateInfo();
+            }
+
+            initializeTimeline() {
+                if (this.points.length === 0) return;
+
+                this.startPercent = 0;
+                this.endPercent = 1;
+                this.updateTimelineFromPercent();
+            }
+
+            parseGCode() {
+                this.points = [];
+                let currentX = 0, currentY = 0, currentZ = 0;
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+                let currentMode = 'G1'; // Default to cutting mode
+
+                this.gcodeLines.forEach((line, index) => {
+                    line = line.trim();
+
+                    // Check for mode change
+                    if (line.startsWith('G0 ') || line.startsWith('G0X') || line.startsWith('G0Y')) {
+                        currentMode = 'G0';
+                    } else if (line.startsWith('G1 ') || line.startsWith('G1X') || line.startsWith('G1Y') || line.startsWith('G1Z')) {
+                        currentMode = 'G1';
+                    }
+
+                    // Parse movement commands (G0 or G1, or just coordinates if in modal mode)
+                    if (line.startsWith('G0') || line.startsWith('G1') ||
+                        line.match(/^X/) || line.match(/^Y/) || line.match(/^Z/)) {
+
+                        const xMatch = line.match(/X([-\d.]+)/);
+                        const yMatch = line.match(/Y([-\d.]+)/);
+                        const zMatch = line.match(/Z([-\d.]+)/);
+
+                        if (xMatch) currentX = parseFloat(xMatch[1]);
+                        if (yMatch) currentY = parseFloat(yMatch[1]);
+                        if (zMatch) currentZ = parseFloat(zMatch[1]);
+
+                        if (xMatch || yMatch) {
+                            this.points.push({
+                                x: currentX,
+                                y: currentY,
+                                z: currentZ,
+                                lineIndex: index,
+                                isTravel: currentMode === 'G0'
+                            });
+
+                            minX = Math.min(minX, currentX);
+                            maxX = Math.max(maxX, currentX);
+                            minY = Math.min(minY, currentY);
+                            maxY = Math.max(maxY, currentY);
+                        }
+                    }
+                });
+
+                this.bounds = { minX, maxX, minY, maxY };
+            }
+
+            resetView() {
+                if (this.points.length === 0) return;
+
+                const padding = 50;
+                const width = this.bounds.maxX - this.bounds.minX;
+                const height = this.bounds.maxY - this.bounds.minY;
+
+                const scaleX = (this.canvas.width - padding * 2) / width;
+                const scaleY = (this.canvas.height - padding * 2) / height;
+                this.scale = Math.min(scaleX, scaleY);
+
+                this.offsetX = this.canvas.width / 2 - (this.bounds.minX + width / 2) * this.scale;
+                this.offsetY = this.canvas.height / 2 + (this.bounds.minY + height / 2) * this.scale;
+
+                this.draw();
+            }
+
+            zoom(factor) {
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+
+                this.offsetX = centerX - (centerX - this.offsetX) * factor;
+                this.offsetY = centerY - (centerY - this.offsetY) * factor;
+                this.scale *= factor;
+
+                this.draw();
+            }
+
+            handleWheel(e) {
+                e.preventDefault();
+                const factor = e.deltaY < 0 ? 1.1 : 0.9;
+                this.zoom(factor);
+            }
+
+            handleMouseDown(e) {
+                // Allow panning with left click or shift+click
+                this.isDragging = true;
+                this.lastMouseX = e.offsetX;
+                this.lastMouseY = e.offsetY;
+                this.canvas.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+
+            handleMouseMove(e) {
+                if (this.isDragging) {
+                    const dx = e.offsetX - this.lastMouseX;
+                    const dy = e.offsetY - this.lastMouseY;
+                    this.offsetX += dx;
+                    this.offsetY += dy;
+                    this.lastMouseX = e.offsetX;
+                    this.lastMouseY = e.offsetY;
+                    this.draw();
+                }
+            }
+
+            handleMouseUp() {
+                this.isDragging = false;
+                this.canvas.style.cursor = 'default';
+            }
+
+            clearSelection() {
+                this.startPercent = 0;
+                this.endPercent = 1;
+                this.updateTimelineFromPercent();
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                if (this.points.length === 0) return;
+
+                const startIdx = this.startPoint ? this.points.findIndex(p => p.lineIndex === this.startLineIndex) : -1;
+                const endIdx = this.endPoint ? this.points.findIndex(p => p.lineIndex === this.endLineIndex) : -1;
+
+                // Draw all paths with proper styling based on selection
+                for (let i = 1; i < this.points.length; i++) {
+                    const prevPoint = this.points[i - 1];
+                    const point = this.points[i];
+
+                    const screenX1 = prevPoint.x * this.scale + this.offsetX;
+                    const screenY1 = this.offsetY - prevPoint.y * this.scale;
+                    const screenX2 = point.x * this.scale + this.offsetX;
+                    const screenY2 = this.offsetY - point.y * this.scale;
+
+                    const isSelected = (startIdx !== -1 && endIdx !== -1 && i > startIdx && i <= endIdx);
+
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screenX1, screenY1);
+                    this.ctx.lineTo(screenX2, screenY2);
+
+                    if (isSelected) {
+                        // Selected portion: bright colors
+                        if (point.isTravel) {
+                            this.ctx.strokeStyle = '#ffffff';
+                            this.ctx.lineWidth = 1;
+                        } else {
+                            this.ctx.strokeStyle = '#00d4ff';
+                            this.ctx.lineWidth = 2.5;
+                        }
+                    } else {
+                        // Unselected portion: dimmed colors
+                        if (point.isTravel) {
+                            this.ctx.strokeStyle = '#444444';
+                            this.ctx.lineWidth = 0.5;
+                        } else {
+                            this.ctx.strokeStyle = '#333333';
+                            this.ctx.lineWidth = 1;
+                        }
+                    }
+
+                    this.ctx.stroke();
+                }
+
+                // Draw start point
+                if (this.startPoint) {
+                    const screenX = this.startPoint.x * this.scale + this.offsetX;
+                    const screenY = this.offsetY - this.startPoint.y * this.scale;
+
+                    this.ctx.fillStyle = '#4ade80';
+                    this.ctx.beginPath();
+                    this.ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#fff';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                }
+
+                // Draw end point
+                if (this.endPoint) {
+                    const screenX = this.endPoint.x * this.scale + this.offsetX;
+                    const screenY = this.offsetY - this.endPoint.y * this.scale;
+
+                    this.ctx.fillStyle = '#f87171';
+                    this.ctx.beginPath();
+                    this.ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#fff';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                }
+            }
+
+            updateInfo() {
+                document.getElementById('totalLines').textContent = this.gcodeLines.length;
+                document.getElementById('totalPoints').textContent = this.points.length;
+
+                const width = (this.bounds.maxX - this.bounds.minX).toFixed(1);
+                const height = (this.bounds.maxY - this.bounds.minY).toFixed(1);
+                document.getElementById('workArea').textContent = `${width} × ${height}`;
+
+                if (this.startPoint && this.endPoint) {
+                    const selectedLines = this.endLineIndex - this.startLineIndex + 1;
+                    document.getElementById('selectedLines').textContent = selectedLines;
+                    document.getElementById('startLine').textContent = this.startLineIndex + 1;
+                    document.getElementById('endLine').textContent = this.endLineIndex + 1;
+                    document.getElementById('selectionInfo').style.display = 'block';
+                } else {
+                    document.getElementById('selectedLines').textContent = '0';
+                    document.getElementById('selectionInfo').style.display = 'none';
+                }
+            }
+
+            exportGCode() {
+                if (!this.startLineIndex || !this.endLineIndex) return;
+
+                // Extract header (initialization commands)
+                const header = [];
+                for (let i = 0; i < this.gcodeLines.length; i++) {
+                    const line = this.gcodeLines[i].trim();
+                    if (line.startsWith('G0') || line.startsWith('G1')) break;
+                    header.push(this.gcodeLines[i]);
+                }
+
+                // Extract selected lines
+                const selectedLines = this.gcodeLines.slice(this.startLineIndex, this.endLineIndex + 1);
+
+                // Add footer (end commands)
+                const footer = [
+                    'M5',  // Spindle off
+                    'G0 Z0',  // Raise Z
+                    'G0 X0 Y0',  // Return to origin
+                    'M2'  // Program end
+                ];
+
+                const output = [...header, '', '; === EXTRACTED SECTION ===', '', ...selectedLines, '', ...footer].join('\n');
+
+                // Download file
+                const blob = new Blob([output], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `extracted_lines_${this.startLineIndex + 1}_to_${this.endLineIndex + 1}.gcode`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        // Initialize the visualizer
+        const visualizer = new GCodeVisualizer();
+    </script>
+</body>
+</html>
